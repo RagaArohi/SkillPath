@@ -1,39 +1,139 @@
 import os
-from dotenv import load_dotenv
-load_dotenv()
-
+import datetime
 import streamlit as st
+from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 from groq import Groq
-import datetime
 
-ELASTIC_URL     = os.environ.get("ELASTIC_ENDPOINT", "")
-ELASTIC_API_KEY = os.environ.get("ELASTIC_API_KEY", "")
-GROQ_API_KEY    = os.environ.get("GROQ_API_KEY", "")
+# ── Load secrets ──────────────────────────────────────────────────────────────
+load_dotenv()
 
-es          = Elasticsearch(ELASTIC_URL, api_key=ELASTIC_API_KEY)
-groq_client = Groq(api_key=GROQ_API_KEY)
+ELASTIC_ENDPOINT = os.environ.get("ELASTIC_ENDPOINT", "")
+ELASTIC_API_KEY  = os.environ.get("ELASTIC_API_KEY", "")
+GROQ_API_KEY     = os.environ.get("GROQ_API_KEY", "")
 
+# ── Page config ───────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="SkillPath",
+    page_icon="🛤️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+# ── Custom CSS ────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap');
+
+html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
+h1, h2, h3 { font-family: 'Syne', sans-serif !important; }
+
+.hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 3.2rem; font-weight: 800;
+    line-height: 1.1; color: #0f172a; margin-bottom: 0.3rem;
+}
+.hero-sub {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.1rem; color: #64748b; margin-bottom: 2rem;
+}
+.accent { color: #6366f1; }
+
+.resource-card {
+    background: #ffffff; border: 1.5px solid #e2e8f0;
+    border-radius: 14px; padding: 1.2rem 1.4rem;
+    margin-bottom: 1rem; transition: box-shadow 0.2s;
+}
+.resource-card:hover {
+    box-shadow: 0 4px 20px rgba(99,102,241,0.12);
+    border-color: #a5b4fc;
+}
+.resource-card.active-step {
+    border-color: #6366f1;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.18);
+}
+.resource-card.done-step { opacity: 0.6; }
+.resource-card.skipped-step { opacity: 0.5; }
+
+.card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.05rem; font-weight: 700;
+    color: #1e293b; margin-bottom: 0.2rem;
+}
+.card-meta { font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.5rem; }
+.card-desc { font-size: 0.9rem; color: #475569; margin-bottom: 0.7rem; }
+
+.tag {
+    display: inline-block; background: #f1f5f9; color: #475569;
+    border-radius: 6px; padding: 2px 10px;
+    font-size: 0.75rem; margin-right: 4px; margin-bottom: 4px;
+}
+.tag-style { background: #ede9fe; color: #6d28d9; }
+.tag-goal  { background: #dcfce7; color: #166534; }
+.tag-done  { background: #d1fae5; color: #065f46; }
+.tag-step  { background: #6366f1; color: #fff; font-weight: 700; }
+
+.ai-box {
+    background: linear-gradient(135deg, #eef2ff 0%, #f0fdf4 100%);
+    border: 1.5px solid #c7d2fe; border-radius: 14px;
+    padding: 1.4rem 1.6rem; margin-bottom: 2rem;
+}
+.ai-label {
+    font-family: 'Syne', sans-serif; font-size: 0.8rem;
+    font-weight: 700; color: #6366f1;
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;
+}
+
+.path-progress {
+    background: #f1f5f9; border-radius: 14px;
+    padding: 1rem 1.4rem; margin-bottom: 1.5rem;
+}
+
+.divider { border: none; border-top: 1.5px solid #f1f5f9; margin: 1.5rem 0; }
+
+.stButton > button {
+    background: #6366f1; color: white; border: none;
+    border-radius: 10px; padding: 0.55rem 1.8rem;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 1rem; cursor: pointer; transition: background 0.2s;
+}
+.stButton > button:hover { background: #4f46e5; }
+footer { visibility: hidden; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ── Clients ───────────────────────────────────────────────────────────────────
+@st.cache_resource
+def get_es_client():
+    return Elasticsearch(ELASTIC_ENDPOINT, api_key=ELASTIC_API_KEY)
+
+@st.cache_resource
+def get_groq_client():
+    return Groq(api_key=GROQ_API_KEY)
+
+
+# ── Elasticsearch: user paths ─────────────────────────────────────────────────
 def ensure_user_paths_index():
+    es = get_es_client()
     if not es.indices.exists(index="user_paths"):
         es.indices.create(index="user_paths", body={
-            "mappings": {
-                "properties": {
-                    "email":           {"type": "keyword"},
-                    "query":           {"type": "text"},
-                    "level":           {"type": "keyword"},
-                    "learning_styles": {"type": "keyword"},
-                    "pace":            {"type": "keyword"},
-                    "goals":           {"type": "keyword"},
-                    "path":            {"type": "object", "enabled": False},
-                    "created_at":      {"type": "date"},
-                    "updated_at":      {"type": "date"},
-                }
-            }
+            "mappings": {"properties": {
+                "email":           {"type": "keyword"},
+                "query":           {"type": "text"},
+                "level":           {"type": "keyword"},
+                "learning_styles": {"type": "keyword"},
+                "pace":            {"type": "keyword"},
+                "goals":           {"type": "keyword"},
+                "path":            {"type": "object", "enabled": False},
+                "created_at":      {"type": "date"},
+                "updated_at":      {"type": "date"},
+            }}
         })
 
 def load_user_profile(email):
     try:
+        es = get_es_client()
         res = es.search(index="user_paths", query={"term": {"email": email}}, size=1)
         hits = res["hits"]["hits"]
         if hits:
@@ -44,17 +144,13 @@ def load_user_profile(email):
 
 def save_user_profile(email, query, level, learning_styles, pace, goals, path):
     ensure_user_paths_index()
-    doc_id, existing = load_user_profile(email)
+    es = get_es_client()
+    doc_id, _ = load_user_profile(email)
     now = datetime.datetime.utcnow().isoformat()
     doc = {
-        "email": email,
-        "query": query,
-        "level": level,
-        "learning_styles": learning_styles,
-        "pace": pace,
-        "goals": goals,
-        "path": path,
-        "updated_at": now,
+        "email": email, "query": query, "level": level,
+        "learning_styles": learning_styles, "pace": pace,
+        "goals": goals, "path": path, "updated_at": now,
     }
     if doc_id:
         es.update(index="user_paths", id=doc_id, body={"doc": doc})
@@ -63,235 +159,434 @@ def save_user_profile(email, query, level, learning_styles, pace, goals, path):
         es.index(index="user_paths", body=doc)
 
 def update_path_only(email, path):
+    es = get_es_client()
     doc_id, _ = load_user_profile(email)
     if doc_id:
-        es.update(index="user_paths", id=doc_id, body={
-            "doc": {
-                "path": path,
-                "updated_at": datetime.datetime.utcnow().isoformat()
-            }
-        })
+        es.update(index="user_paths", id=doc_id, body={"doc": {
+            "path": path,
+            "updated_at": datetime.datetime.utcnow().isoformat()
+        }})
 
-def search_resources(query, level, learning_styles, goals, exclude_urls=None, size=8):
+
+# ── Search ────────────────────────────────────────────────────────────────────
+def search_resources(query, level, learning_styles, pace, goals, exclude_urls=None, size=8):
+    es = get_es_client()
     must = [{"multi_match": {
-        "query": query,
-        "fields": ["title", "description", "topic"],
-        "fuzziness": "AUTO"
-    }}]
-    filters = []
+        "query": query, "fields": ["title^2", "description", "topic"],
+        "fuzziness": "AUTO",
+    }}] if query.strip() else [{"match_all": {}}]
+
+    filters = [{"term": {"free": True}}]
     if level and level != "Any":
         filters.append({"term": {"level": level.lower()}})
     if learning_styles:
         filters.append({"terms": {"learning_style": learning_styles}})
+    if pace and pace != "Any":
+        filters.append({"term": {"pace": pace.lower().replace(" ", "-")}})
     if goals:
         filters.append({"terms": {"goal": goals}})
 
-    search_query = {"bool": {"must": must}}
-    if filters:
-        search_query["bool"]["filter"] = filters
+    body = {"query": {"bool": {"must": must, "filter": filters}}, "size": size}
     if exclude_urls:
-        search_query["bool"]["must_not"] = [{"terms": {"url": exclude_urls}}]
+        body["query"]["bool"]["must_not"] = [{"terms": {"url": exclude_urls}}]
 
-    results = es.search(index="cs-resources", query=search_query, size=size)
-    return results["hits"]["hits"]
+    try:
+        resp = es.search(index="cs-resources", body=body)
+        return [hit["_source"] for hit in resp["hits"]["hits"]]
+    except Exception as e:
+        st.error(f"Search error: {e}")
+        return []
 
-def get_ai_intro(student_query, resources, learning_styles, pace, goals):
-    resources_text = "\n".join(
-        f"- {h['_source']['title']}: {h['_source']['description']}"
-        for h in resources[:5]
-    )
-    prompt = f"""You are a warm senior student helping a first-gen CS student in India.
 
-Student: "{student_query}"
-Learning style: {', '.join(learning_styles) if learning_styles else 'not specified'}
-Pace: {pace}
-Goal: {', '.join(goals) if goals else 'not specified'}
+# ── AI recommendation ─────────────────────────────────────────────────────────
+def get_ai_recommendation(query, level, learning_styles, pace, goals, resources):
+    groq = get_groq_client()
+    resource_titles = [r["title"] for r in resources[:6]]
+    prompt = f"""You are SkillPath, a friendly learning advisor for first-generation CS students in India.
 
-Resources found:
-{resources_text}
+A student is looking for: "{query}"
+Their level: {level}
+Learning style: {', '.join(learning_styles) if learning_styles else 'any'}
+Pace preference: {pace}
+Goals: {', '.join(goals) if goals else 'general learning'}
 
-Write 2-3 friendly sentences:
-1. Acknowledge their situation briefly
-2. Tell them you've built a learning path for them and they should try Step 1 first
+Top matching resources: {resource_titles}
 
-Sound like a helpful friend, not a formal tutor. Keep it short."""
+Give a warm, encouraging 2–3 sentence recommendation. Tell them which resource to start with and why it suits their learning style. Be specific, practical, motivating. No bullet points."""
 
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
+    try:
+        resp = groq.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        return f"(AI recommendation unavailable: {e})"
 
-def build_path_from_hits(hits):
-    path = []
-    for hit in hits:
-        r = hit["_source"]
-        path.append({
-            "title":         r.get("title", ""),
-            "description":   r.get("description", ""),
-            "url":           r.get("url", ""),
-            "level":         r.get("level", ""),
-            "topic":         r.get("topic", ""),
-            "type":          r.get("type", ""),
-            "pace":          r.get("pace", "flexible"),
-            "learning_style": r.get("learning_style", []),
-            "status":        "pending",
-        })
-    return path
 
-st.set_page_config(page_title="SkillPath", page_icon="🧭")
-st.title("🧭 SkillPath")
-st.subheader("Free learning resources matched to how YOU learn")
-st.caption("Built for first-gen CS students in India who don't know where to start.")
-st.markdown("---")
+# ── Build path from resources ─────────────────────────────────────────────────
+def build_path(resources):
+    return [{
+        "title":          r.get("title", ""),
+        "description":    r.get("description", ""),
+        "url":            r.get("url", ""),
+        "level":          r.get("level", ""),
+        "topic":          r.get("topic", ""),
+        "type":           r.get("type", ""),
+        "pace":           r.get("pace", "flexible"),
+        "learning_style": r.get("learning_style", []),
+        "goal":           r.get("goal", []),
+        "status":         "pending",
+    } for r in resources]
 
-email = st.text_input(
-    "📧 Enter your email to save your progress",
-    placeholder="you@example.com"
-)
 
-returning_user = False
-if email and "@" in email:
-    doc_id, profile = load_user_profile(email)
-    if profile:
-        returning_user = True
-        st.success("Welcome back! Resuming your learning path.")
-        if "path" not in st.session_state:
-            st.session_state.path            = profile.get("path", [])
-            st.session_state.query           = profile.get("query", "")
-            st.session_state.level           = profile.get("level", "Any")
-            st.session_state.learning_styles = profile.get("learning_styles", [])
-            st.session_state.pace            = profile.get("pace", "self-paced")
-            st.session_state.goals           = profile.get("goals", [])
-            st.session_state.email           = email
-            st.session_state.submitted       = True
+# ── Resource card (original design) ──────────────────────────────────────────
+def render_card(r, step_num=None, show_feedback=False, idx=None, email=None):
+    status = r.get("status", "pending")
+    card_class = "resource-card"
+    if status == "done":    card_class += " done-step"
+    elif status == "skipped": card_class += " skipped-step"
+    elif show_feedback:     card_class += " active-step"
 
-if not returning_user and "submitted" not in st.session_state:
-    query = st.text_area(
-        "What do you want to learn or what's confusing you?",
-        placeholder="e.g. I'm a 2nd year CS student interested in AI but don't know where to start",
-        height=100
-    )
-    col1, col2 = st.columns(2)
-    with col1:
-        level = st.selectbox("Your current level:", ["Any", "Beginner", "Intermediate", "Advanced"])
-        pace_raw = st.selectbox("Your pace:", [
-            "Self-paced — I go at my own speed",
-            "Structured — I need deadlines and schedules",
-            "Micro-learning — Short bursts, 10-15 mins at a time"
-        ])
-    with col2:
-        learning_styles = st.multiselect("How do you learn best?", [
-            "visual", "audio", "text", "hands-on", "reference"
-        ], placeholder="Pick all that apply")
-        goals = st.multiselect("What's your goal?", [
-            "understand concepts", "build projects", "get interview-ready", "learn tools"
-        ], placeholder="Pick all that apply")
+    styles_html = "".join(f'<span class="tag tag-style">{s}</span>' for s in r.get("learning_style", []))
+    goals_html  = "".join(f'<span class="tag tag-goal">{g}</span>'   for g in r.get("goal", []))
+    type_tag    = f'<span class="tag">{r.get("type","")}</span>'
+    level_tag   = f'<span class="tag">{r.get("level","")}</span>'
+    pace_tag    = f'<span class="tag">{r.get("pace","")}</span>'
+    step_badge  = f'<span class="tag tag-step">Step {step_num}</span> ' if step_num else ""
+    done_badge  = '<span class="tag tag-done">✅ Done</span> '           if status == "done" else ""
+    skip_badge  = '<span class="tag">⏭️ Skipped</span> '                 if status == "skipped" else ""
 
-    if st.button("Build My Learning Path →", type="primary"):
-        if not email or "@" not in email:
-            st.warning("Please enter your email above to save your progress.")
-        elif query.strip():
-            with st.spinner("Building your personal learning path..."):
-                pace_clean = pace_raw.split("—")[0].strip().lower()
-                hits = search_resources(query, level, learning_styles, goals, size=6)
-                if hits:
-                    path     = build_path_from_hits(hits)
-                    ai_intro = get_ai_intro(query, hits, learning_styles, pace_clean, goals)
-                    save_user_profile(email, query, level, learning_styles, pace_clean, goals, path)
-                    st.session_state.path            = path
-                    st.session_state.ai_intro        = ai_intro
-                    st.session_state.query           = query
-                    st.session_state.level           = level
-                    st.session_state.learning_styles = learning_styles
-                    st.session_state.pace            = pace_clean
-                    st.session_state.goals           = goals
-                    st.session_state.email           = email
-                    st.session_state.submitted       = True
-                    st.rerun()
+    st.markdown(f"""
+    <div class="{card_class}">
+        <div class="card-title">{step_badge}{done_badge}{skip_badge}
+            🔗 <a href="{r.get('url','#')}" target="_blank"
+               style="color:#1e293b;text-decoration:none;">{r.get('title','')}</a>
+        </div>
+        <div class="card-meta">{r.get('topic','')} &nbsp;·&nbsp; {type_tag} {level_tag} {pace_tag}</div>
+        <div class="card-desc">{r.get('description','')}</div>
+        <div>{styles_html}{goals_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if show_feedback and status == "pending":
+        c1, c2, c3, _ = st.columns([2, 2, 2, 4])
+        if c1.button("✅ It worked!", key=f"yes_{idx}"):
+            st.session_state.path[idx]["status"] = "done"
+            if email: update_path_only(email, st.session_state.path)
+            st.rerun()
+        if c2.button("❌ Didn't work", key=f"no_{idx}"):
+            existing_urls = [r2["url"] for r2 in st.session_state.path]
+            replacements = search_resources(
+                st.session_state.query, st.session_state.level,
+                st.session_state.learning_styles, st.session_state.pace,
+                st.session_state.goals, exclude_urls=existing_urls, size=3
+            )
+            if replacements:
+                st.session_state.path[idx] = build_path([replacements[0]])[0]
+                if email: update_path_only(email, st.session_state.path)
+                st.success("Swapped for a better match!")
+            else:
+                st.session_state.path[idx]["status"] = "skipped"
+                if email: update_path_only(email, st.session_state.path)
+                st.warning("No more alternatives — marked as skipped.")
+            st.rerun()
+        if c3.button("⏭️ Skip", key=f"skip_{idx}"):
+            st.session_state.path[idx]["status"] = "skipped"
+            if email: update_path_only(email, st.session_state.path)
+            st.rerun()
+
+
+# ── Session state init ────────────────────────────────────────────────────────
+defaults = {
+    "step": 0, "query": "", "level": "Any",
+    "learning_styles": [], "pace": "Any", "goals": [],
+    "email": "", "path": [], "ai_text": "",
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+
+# ── Progress bar ──────────────────────────────────────────────────────────────
+def show_progress(step, total=4):
+    pct = int((step - 1) / total * 100)
+    st.markdown(f"""
+    <div style="margin-bottom:1.5rem;">
+        <div style="display:flex;justify-content:space-between;
+                    font-size:0.78rem;color:#94a3b8;margin-bottom:6px;">
+            <span>Step {step} of {total}</span><span>{pct}% done</span>
+        </div>
+        <div style="background:#f1f5f9;border-radius:99px;height:6px;">
+            <div style="background:#6366f1;width:{pct}%;height:6px;
+                        border-radius:99px;transition:width 0.4s;"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def step_label(text):
+    st.markdown(f"""
+    <div style="font-family:'Syne',sans-serif;font-size:1.5rem;
+                font-weight:800;color:#0f172a;margin-bottom:0.3rem;">{text}</div>
+    """, unsafe_allow_html=True)
+
+
+# ── Hero ──────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="hero-title">Skill<span class="accent">Path</span></div>
+<div class="hero-sub">Free learning resources matched to <em>how you learn</em> — built for CS students in India 🇮🇳</div>
+""", unsafe_allow_html=True)
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+
+
+# ── STEP 0: Email ─────────────────────────────────────────────────────────────
+if st.session_state.step == 0:
+    step_label("Let's save your progress 💾")
+    st.markdown('<div style="color:#64748b;margin-bottom:1rem;">Enter your email so you can pick up where you left off — no password needed.</div>', unsafe_allow_html=True)
+
+    email = st.text_input("Email", placeholder="you@example.com", label_visibility="collapsed")
+
+    col_skip, col_next = st.columns([2, 3])
+    with col_skip:
+        if st.button("Skip — don't save"):
+            st.session_state.email = ""
+            st.session_state.step  = 1
+            st.rerun()
+    with col_next:
+        if st.button("Continue →"):
+            if email and "@" in email:
+                st.session_state.email = email
+                # Check if returning user
+                _, profile = load_user_profile(email)
+                if profile:
+                    st.session_state.path            = profile.get("path", [])
+                    st.session_state.query           = profile.get("query", "")
+                    st.session_state.level           = profile.get("level", "Any")
+                    st.session_state.learning_styles = profile.get("learning_styles", [])
+                    st.session_state.pace            = profile.get("pace", "Any")
+                    st.session_state.goals           = profile.get("goals", [])
+                    st.session_state.step            = 5  # go straight to path view
                 else:
-                    st.warning("No matches found — try broader keywords or fewer filters.")
+                    st.session_state.step = 1
+                st.rerun()
+            else:
+                st.warning("Please enter a valid email.")
+
+
+# ─── STEP 1: Topic ────────────────────────────────────────────────────────────
+elif st.session_state.step == 1:
+    show_progress(1)
+    step_label("What do you want to learn? 🎯")
+    st.markdown('<div style="color:#64748b;margin-bottom:1rem;">Type a topic — anything you\'re curious about.</div>', unsafe_allow_html=True)
+
+    query = st.text_input("Topic", value=st.session_state.query,
+        placeholder="e.g. Python, machine learning, web development, DSA...",
+        label_visibility="collapsed")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Next →"):
+        if query.strip():
+            st.session_state.query = query.strip()
+            st.session_state.step  = 2
+            st.rerun()
         else:
-            st.warning("Tell me what you want to learn first!")
+            st.warning("Please enter a topic to continue.")
 
-if "submitted" in st.session_state and "path" in st.session_state:
+
+# ─── STEP 2: Level + Learning style ──────────────────────────────────────────
+elif st.session_state.step == 2:
+    show_progress(2)
+    step_label("How much do you already know? 📚")
+    st.markdown(f'<div style="color:#64748b;margin-bottom:1rem;">You want to learn: <strong>{st.session_state.query}</strong></div>', unsafe_allow_html=True)
+
+    level = st.radio("Your level", ["Beginner", "Intermediate", "Advanced", "Not sure"],
+        index=0, horizontal=True, label_visibility="collapsed")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    step_label("How do you learn best? 🧠")
+    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Pick everything that fits you.</div>', unsafe_allow_html=True)
+
+    style_options = {
+        "📹 Watch videos": "visual",
+        "🎧 Listen to podcasts/lectures": "audio",
+        "📖 Read articles/docs": "text",
+        "💻 Build things hands-on": "hands-on",
+        "📋 Use cheatsheets/references": "reference",
+    }
+    selected_styles = []
+    cols = st.columns(2)
+    for i, (label, value) in enumerate(style_options.items()):
+        with cols[i % 2]:
+            if st.checkbox(label, value=value in st.session_state.learning_styles):
+                selected_styles.append(value)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_back, col_next = st.columns([1, 3])
+    with col_back:
+        if st.button("← Back"):
+            st.session_state.step = 1; st.rerun()
+    with col_next:
+        if st.button("Next →"):
+            st.session_state.level          = "Any" if level == "Not sure" else level
+            st.session_state.learning_styles = selected_styles
+            st.session_state.step           = 3
+            st.rerun()
+
+
+# ─── STEP 3: Pace + Goal ──────────────────────────────────────────────────────
+elif st.session_state.step == 3:
+    show_progress(3)
+    step_label("What's your pace? ⏱️")
+    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Be honest — there\'s no wrong answer.</div>', unsafe_allow_html=True)
+
+    pace_options = {
+        "🐢 Self-paced — I go at my own speed": "self-paced",
+        "📅 Structured — I like a weekly schedule": "structured",
+        "⚡ Micro-learning — 10–15 min sessions": "micro-learning",
+        "🤷 No preference": "Any",
+    }
+    pace_label = st.radio("Pace", list(pace_options.keys()), label_visibility="collapsed")
+    pace = pace_options[pace_label]
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    step_label("What's your goal? 🏁")
+    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Pick everything that applies.</div>', unsafe_allow_html=True)
+
+    goal_options = {
+        "🧩 Understand concepts deeply": "understand concepts",
+        "🛠️ Build real projects": "build projects",
+        "💼 Get interview-ready": "get interview-ready",
+        "🔧 Learn tools & frameworks": "learn tools",
+    }
+    selected_goals = []
+    for label, value in goal_options.items():
+        if st.checkbox(label, value=value in st.session_state.goals):
+            selected_goals.append(value)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_back, col_next = st.columns([1, 3])
+    with col_back:
+        if st.button("← Back"):
+            st.session_state.step = 2; st.rerun()
+    with col_next:
+        if st.button("Build my learning path →"):
+            st.session_state.pace  = pace
+            st.session_state.goals = selected_goals
+            st.session_state.step  = 4
+            st.rerun()
+
+
+# ─── STEP 4: Build path ───────────────────────────────────────────────────────
+elif st.session_state.step == 4:
+    show_progress(4)
+
+    chips = [f'<span class="tag">{st.session_state.query}</span>']
+    if st.session_state.level != "Any":
+        chips.append(f'<span class="tag">{st.session_state.level}</span>')
+    for s in st.session_state.learning_styles:
+        chips.append(f'<span class="tag tag-style">{s}</span>')
+    if st.session_state.pace != "Any":
+        chips.append(f'<span class="tag">{st.session_state.pace}</span>')
+    for g in st.session_state.goals:
+        chips.append(f'<span class="tag tag-goal">{g}</span>')
+    st.markdown(f'<div style="margin-bottom:1.2rem;">{"".join(chips)}</div>', unsafe_allow_html=True)
+
+    with st.spinner("Building your learning path..."):
+        results = search_resources(
+            st.session_state.query, st.session_state.level,
+            st.session_state.learning_styles, st.session_state.pace,
+            st.session_state.goals, size=6
+        )
+
+    if not results:
+        st.warning("No resources matched — try starting over with broader filters.")
+    else:
+        with st.spinner("Getting your personalised recommendation..."):
+            ai_text = get_ai_recommendation(
+                st.session_state.query, st.session_state.level,
+                st.session_state.learning_styles, st.session_state.pace,
+                st.session_state.goals, results
+            )
+        path = build_path(results)
+        st.session_state.path    = path
+        st.session_state.ai_text = ai_text
+
+        if st.session_state.email:
+            save_user_profile(
+                st.session_state.email, st.session_state.query,
+                st.session_state.level, st.session_state.learning_styles,
+                st.session_state.pace, st.session_state.goals, path
+            )
+
+        st.session_state.step = 5
+        st.rerun()
+
+
+# ─── STEP 5: Learning path view ───────────────────────────────────────────────
+elif st.session_state.step == 5:
     path  = st.session_state.path
-    email = st.session_state.get("email", "")
+    email = st.session_state.email
 
-    if "ai_intro" in st.session_state:
-        st.markdown("### 💬 Your mentor says")
-        st.write(st.session_state.ai_intro)
+    # AI box
+    if st.session_state.ai_text:
+        st.markdown(f"""
+        <div class="ai-box">
+            <div class="ai-label">✦ SkillPath Recommendation</div>
+            <div style="color:#1e293b;font-size:0.97rem;line-height:1.6;">{st.session_state.ai_text}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("### 🗺️ Your Learning Path")
-    done_count   = sum(1 for r in path if r["status"] == "done")
-    total        = len(path)
-    st.progress(done_count / total if total else 0, text=f"{done_count} of {total} completed")
+    # Progress summary
+    done_count = sum(1 for r in path if r["status"] == "done")
+    total      = len(path)
+    pct        = int(done_count / total * 100) if total else 0
+    st.markdown(f"""
+    <div class="path-progress">
+        <div style="display:flex;justify-content:space-between;
+                    font-family:'Syne',sans-serif;font-weight:700;
+                    color:#1e293b;margin-bottom:8px;">
+            <span>🗺️ Your Learning Path</span>
+            <span style="color:#6366f1;">{done_count}/{total} done</span>
+        </div>
+        <div style="background:#e2e8f0;border-radius:99px;height:8px;">
+            <div style="background:#6366f1;width:{pct}%;height:8px;
+                        border-radius:99px;transition:width 0.4s;"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    first_pending = next((j for j, r in enumerate(path) if r["status"] == "pending"), -1)
+    # Find first pending
+    first_pending = next((i for i, r in enumerate(path) if r["status"] == "pending"), -1)
 
     for i, resource in enumerate(path):
-        status = resource["status"]
-        badge  = "✅" if status == "done" else ("🔄" if status == "skipped" else f"Step {i+1}")
+        is_active = (i == first_pending)
+        render_card(
+            resource,
+            step_num=i + 1,
+            show_feedback=is_active,
+            idx=i,
+            email=email if email else None
+        )
 
-        with st.expander(f"{badge} — {resource['title']} ({resource['level'].capitalize()})", expanded=(i == first_pending)):
-            st.write(resource["description"])
-            col_a, col_b, col_c = st.columns(3)
-            col_a.markdown(f"**Type:** {resource['type']}")
-            col_b.markdown(f"**Topic:** {resource['topic']}")
-            col_c.markdown(f"**Pace:** {resource['pace']}")
-            if resource["learning_style"]:
-                st.markdown(f"**Best for:** {', '.join(resource['learning_style'])}")
-            st.markdown(f"[Open Resource →]({resource['url']})")
-
-            if status == "pending":
-                st.markdown("---")
-                st.markdown("**Did this resource work for you?**")
-                c1, c2, c3 = st.columns(3)
-                if c1.button("✅ Yes, it worked!", key=f"yes_{i}"):
-                    st.session_state.path[i]["status"] = "done"
-                    if email:
-                        update_path_only(email, st.session_state.path)
-                    st.rerun()
-                if c2.button("❌ Didn't work", key=f"no_{i}"):
-                    existing_urls = [r["url"] for r in st.session_state.path]
-                    replacements  = search_resources(
-                        st.session_state.query,
-                        st.session_state.level,
-                        st.session_state.learning_styles,
-                        st.session_state.goals,
-                        exclude_urls=existing_urls,
-                        size=3
-                    )
-                    if replacements:
-                        st.session_state.path[i] = build_path_from_hits([replacements[0]])[0]
-                        if email:
-                            update_path_only(email, st.session_state.path)
-                        st.success("Swapped for a better match!")
-                    else:
-                        st.session_state.path[i]["status"] = "skipped"
-                        if email:
-                            update_path_only(email, st.session_state.path)
-                        st.warning("No more alternatives — marked as skipped.")
-                    st.rerun()
-                if c3.button("⏭️ Skip", key=f"skip_{i}"):
-                    st.session_state.path[i]["status"] = "skipped"
-                    if email:
-                        update_path_only(email, st.session_state.path)
-                    st.rerun()
-            elif status == "done":
-                st.success("Completed! 🎉")
-            elif status == "skipped":
-                st.info("Skipped — come back to this later.")
-
+    # Completion
     if all(r["status"] in ("done", "skipped") for r in path):
         st.balloons()
-        st.success("🎓 You've finished your learning path! Come back with a new topic to keep going.")
+        st.success("🎓 You've finished your learning path! Start over to explore a new topic.")
 
-    st.markdown("---")
-    if st.button("🔄 Start a new search"):
-        for key in ["path", "submitted", "ai_intro", "query", "level", "learning_styles", "pace", "goals"]:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("← Start over"):
+        for key in ["step", "query", "level", "learning_styles", "pace", "goals", "path", "ai_text", "email"]:
             st.session_state.pop(key, None)
         st.rerun()
 
-st.markdown("---")
-st.caption("Free resources only. No ads. Built for students like you. 🇮🇳")
+
+# ── Footer ────────────────────────────────────────────────────────────────────
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+st.markdown(
+    '<div style="text-align:center;color:#94a3b8;font-size:0.82rem;">'
+    'Built by <strong>Ragamrutha Chettupalli</strong> · '
+    '<a href="https://github.com/RagaArohi/SkillPath" style="color:#6366f1;">GitHub</a>'
+    '</div>',
+    unsafe_allow_html=True,
+)
