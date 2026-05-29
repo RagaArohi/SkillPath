@@ -8,9 +8,7 @@ from groq import Groq
 # ── Load secrets ──────────────────────────────────────────────────────────────
 load_dotenv()
 
-ELASTIC_ENDPOINT = os.environ.get("ELASTIC_ENDPOINT", "")
-ELASTIC_API_KEY  = os.environ.get("ELASTIC_API_KEY", "")
-GROQ_API_KEY     = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -87,6 +85,11 @@ h1, h2, h3 { font-family: 'Syne', sans-serif !important; }
 .path-progress {
     background: #f1f5f9; border-radius: 14px;
     padding: 1rem 1.4rem; margin-bottom: 1.5rem;
+}
+
+.filter-panel {
+    background: #f8fafc; border: 1.5px solid #e2e8f0;
+    border-radius: 14px; padding: 1.2rem 1.4rem; margin-bottom: 1.5rem;
 }
 
 .divider { border: none; border-top: 1.5px solid #f1f5f9; margin: 1.5rem 0; }
@@ -241,13 +244,13 @@ def build_path(resources):
     } for r in resources]
 
 
-# ── Resource card (original design) ──────────────────────────────────────────
+# ── Resource card ─────────────────────────────────────────────────────────────
 def render_card(r, step_num=None, show_feedback=False, idx=None, email=None):
     status = r.get("status", "pending")
     card_class = "resource-card"
-    if status == "done":    card_class += " done-step"
+    if status == "done":      card_class += " done-step"
     elif status == "skipped": card_class += " skipped-step"
-    elif show_feedback:     card_class += " active-step"
+    elif show_feedback:       card_class += " active-step"
 
     styles_html = "".join(f'<span class="tag tag-style">{s}</span>' for s in r.get("learning_style", []))
     goals_html  = "".join(f'<span class="tag tag-goal">{g}</span>'   for g in r.get("goal", []))
@@ -357,7 +360,6 @@ if st.session_state.step == 0:
         if st.button("Continue →"):
             if email and "@" in email:
                 st.session_state.email = email
-                # Check if returning user
                 _, profile = load_user_profile(email)
                 if profile:
                     st.session_state.path            = profile.get("path", [])
@@ -366,7 +368,7 @@ if st.session_state.step == 0:
                     st.session_state.learning_styles = profile.get("learning_styles", [])
                     st.session_state.pace            = profile.get("pace", "Any")
                     st.session_state.goals           = profile.get("goals", [])
-                    st.session_state.step            = 5  # go straight to path view
+                    st.session_state.step            = 5
                 else:
                     st.session_state.step = 1
                 st.rerun()
@@ -428,9 +430,9 @@ elif st.session_state.step == 2:
             st.session_state.step = 1; st.rerun()
     with col_next:
         if st.button("Next →"):
-            st.session_state.level          = "Any" if level == "Not sure" else level
+            st.session_state.level           = "Any" if level == "Not sure" else level
             st.session_state.learning_styles = selected_styles
-            st.session_state.step           = 3
+            st.session_state.step            = 3
             st.rerun()
 
 
@@ -555,6 +557,62 @@ elif st.session_state.step == 5:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # ── Re-filter panel ───────────────────────────────────────────────────────
+    with st.expander("🔧 Refine your results"):
+        st.markdown('<div style="color:#64748b;font-size:0.9rem;margin-bottom:1rem;">Adjust filters to find better matches — results update instantly.</div>', unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            new_level = st.selectbox(
+                "Level",
+                ["Any", "Beginner", "Intermediate", "Advanced"],
+                index=["Any", "Beginner", "Intermediate", "Advanced"].index(
+                    st.session_state.level if st.session_state.level in ["Any", "Beginner", "Intermediate", "Advanced"] else "Any"
+                ),
+            )
+            new_pace = st.selectbox(
+                "Pace",
+                ["Any", "self-paced", "structured", "micro-learning"],
+                index=["Any", "self-paced", "structured", "micro-learning"].index(
+                    st.session_state.pace if st.session_state.pace in ["Any", "self-paced", "structured", "micro-learning"] else "Any"
+                ),
+            )
+
+        with col2:
+            style_opts = ["visual", "audio", "text", "hands-on", "reference"]
+            new_styles = st.multiselect(
+                "Learning style",
+                style_opts,
+                default=[s for s in st.session_state.learning_styles if s in style_opts],
+            )
+            goal_opts = ["understand concepts", "build projects", "get interview-ready", "learn tools"]
+            new_goals = st.multiselect(
+                "Goals",
+                goal_opts,
+                default=[g for g in st.session_state.goals if g in goal_opts],
+            )
+
+        if st.button("🔄 Apply filters"):
+            st.session_state.level           = new_level
+            st.session_state.pace            = new_pace
+            st.session_state.learning_styles = new_styles
+            st.session_state.goals           = new_goals
+            with st.spinner("Refreshing your path..."):
+                new_results = search_resources(
+                    st.session_state.query, new_level, new_styles, new_pace, new_goals, size=6
+                )
+            if new_results:
+                st.session_state.path = build_path(new_results)
+                if email:
+                    save_user_profile(
+                        email, st.session_state.query, new_level,
+                        new_styles, new_pace, new_goals, st.session_state.path
+                    )
+                st.rerun()
+            else:
+                st.warning("No resources matched those filters — try broadening them.")
 
     # Find first pending
     first_pending = next((i for i, r in enumerate(path) if r["status"] == "pending"), -1)
