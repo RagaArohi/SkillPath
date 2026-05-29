@@ -255,6 +255,49 @@ def render_card(r):
     """, unsafe_allow_html=True)
 
 
+# ── Session state init ────────────────────────────────────────────────────────
+if "step" not in st.session_state:
+    st.session_state.step = 1
+if "query" not in st.session_state:
+    st.session_state.query = ""
+if "level" not in st.session_state:
+    st.session_state.level = "Any"
+if "learning_styles" not in st.session_state:
+    st.session_state.learning_styles = []
+if "pace" not in st.session_state:
+    st.session_state.pace = "Any"
+if "goals" not in st.session_state:
+    st.session_state.goals = []
+
+
+# ── Progress bar ──────────────────────────────────────────────────────────────
+def show_progress(step, total=4):
+    pct = int((step - 1) / total * 100)
+    st.markdown(f"""
+    <div style="margin-bottom:1.5rem;">
+        <div style="display:flex;justify-content:space-between;
+                    font-size:0.78rem;color:#94a3b8;margin-bottom:6px;">
+            <span>Step {step} of {total}</span>
+            <span>{pct}% done</span>
+        </div>
+        <div style="background:#f1f5f9;border-radius:99px;height:6px;">
+            <div style="background:#6366f1;width:{pct}%;height:6px;
+                        border-radius:99px;transition:width 0.4s;"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ── Step label ────────────────────────────────────────────────────────────────
+def step_label(text):
+    st.markdown(f"""
+    <div style="font-family:'Syne',sans-serif;font-size:1.5rem;
+                font-weight:800;color:#0f172a;margin-bottom:0.3rem;">
+        {text}
+    </div>
+    """, unsafe_allow_html=True)
+
+
 # ── UI ─────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero-title">Skill<span class="accent">Path</span></div>
@@ -263,66 +306,180 @@ st.markdown("""
 
 st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
-# ── Filters ───────────────────────────────────────────────────────────────────
-col1, col2 = st.columns([3, 1])
+# ─── STEP 1: Topic ────────────────────────────────────────────────────────────
+if st.session_state.step == 1:
+    show_progress(1)
+    step_label("What do you want to learn? 🎯")
+    st.markdown('<div style="color:#64748b;margin-bottom:1rem;">Type a topic — anything you\'re curious about.</div>', unsafe_allow_html=True)
 
-with col1:
     query = st.text_input(
-        "What do you want to learn?",
-        placeholder="e.g. machine learning, web development, DSA, Python...",
-        label_visibility="visible",
+        "Topic",
+        value=st.session_state.query,
+        placeholder="e.g. Python, machine learning, web development, DSA...",
+        label_visibility="collapsed",
     )
 
-with col2:
-    level = st.selectbox("Level", ["Any", "Beginner", "Intermediate", "Advanced"])
-
-col3, col4, col5 = st.columns(3)
-
-with col3:
-    learning_styles = st.multiselect(
-        "Learning style",
-        ["visual", "audio", "text", "hands-on", "reference"],
-        placeholder="Pick your style(s)",
-    )
-
-with col4:
-    pace = st.selectbox("Pace", ["Any", "self-paced", "structured", "micro-learning"])
-
-with col5:
-    goals = st.multiselect(
-        "Goal",
-        ["understand concepts", "build projects", "get interview-ready", "learn tools"],
-        placeholder="What's your goal?",
-    )
-
-search_clicked = st.button("Find my resources →")
-
-# ── Results ────────────────────────────────────────────────────────────────────
-if search_clicked or query:
-    if not query.strip() and not learning_styles and not goals and level == "Any" and pace == "Any":
-        st.info("Enter a topic or pick a filter to get started.")
-    else:
-        with st.spinner("Finding your path..."):
-            results = search_resources(query, level, learning_styles, pace, goals)
-
-        if not results:
-            st.warning("No resources matched — try broader filters or a different topic.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Next →"):
+        if query.strip():
+            st.session_state.query = query.strip()
+            st.session_state.step = 2
+            st.rerun()
         else:
-            # AI recommendation
-            with st.spinner("Getting your personalised recommendation..."):
-                ai_text = get_ai_recommendation(query, level, learning_styles, pace, goals, results)
+            st.warning("Please enter a topic to continue.")
 
-            st.markdown(f"""
-            <div class="ai-box">
-                <div class="ai-label">✦ SkillPath Recommendation</div>
-                <div style="color:#1e293b;font-size:0.97rem;line-height:1.6;">{ai_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+# ─── STEP 2: Level + Learning style ──────────────────────────────────────────
+elif st.session_state.step == 2:
+    show_progress(2)
+    step_label("How much do you already know? 📚")
+    st.markdown(f'<div style="color:#64748b;margin-bottom:1rem;">You want to learn: <strong>{st.session_state.query}</strong></div>', unsafe_allow_html=True)
 
-            st.markdown(f"### {len(results)} resource{'s' if len(results) != 1 else ''} found")
+    level = st.radio(
+        "Your level",
+        ["Beginner", "Intermediate", "Advanced", "Not sure"],
+        index=0,
+        horizontal=True,
+        label_visibility="collapsed",
+    )
 
-            for r in results:
-                render_card(r)
+    st.markdown("<br>", unsafe_allow_html=True)
+    step_label("How do you learn best? 🧠")
+    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Pick everything that fits you.</div>', unsafe_allow_html=True)
+
+    style_options = {
+        "📹 Watch videos": "visual",
+        "🎧 Listen to podcasts/lectures": "audio",
+        "📖 Read articles/docs": "text",
+        "💻 Build things hands-on": "hands-on",
+        "📋 Use cheatsheets/references": "reference",
+    }
+
+    selected_styles = []
+    cols = st.columns(2)
+    for i, (label, value) in enumerate(style_options.items()):
+        with cols[i % 2]:
+            if st.checkbox(label, value=value in st.session_state.learning_styles):
+                selected_styles.append(value)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_back, col_next = st.columns([1, 3])
+    with col_back:
+        if st.button("← Back"):
+            st.session_state.step = 1
+            st.rerun()
+    with col_next:
+        if st.button("Next →"):
+            st.session_state.level = "Any" if level == "Not sure" else level
+            st.session_state.learning_styles = selected_styles
+            st.session_state.step = 3
+            st.rerun()
+
+# ─── STEP 3: Pace + Goal ──────────────────────────────────────────────────────
+elif st.session_state.step == 3:
+    show_progress(3)
+    step_label("What's your pace? ⏱️")
+    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Be honest — there\'s no wrong answer.</div>', unsafe_allow_html=True)
+
+    pace_options = {
+        "🐢 Self-paced — I go at my own speed": "self-paced",
+        "📅 Structured — I like a weekly schedule": "structured",
+        "⚡ Micro-learning — 10–15 min sessions": "micro-learning",
+        "🤷 No preference": "Any",
+    }
+
+    pace_label = st.radio(
+        "Pace",
+        list(pace_options.keys()),
+        label_visibility="collapsed",
+    )
+    pace = pace_options[pace_label]
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    step_label("What's your goal? 🏁")
+    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Pick everything that applies.</div>', unsafe_allow_html=True)
+
+    goal_options = {
+        "🧩 Understand concepts deeply": "understand concepts",
+        "🛠️ Build real projects": "build projects",
+        "💼 Get interview-ready": "get interview-ready",
+        "🔧 Learn tools & frameworks": "learn tools",
+    }
+
+    selected_goals = []
+    for label, value in goal_options.items():
+        if st.checkbox(label, value=value in st.session_state.goals):
+            selected_goals.append(value)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_back, col_next = st.columns([1, 3])
+    with col_back:
+        if st.button("← Back"):
+            st.session_state.step = 2
+            st.rerun()
+    with col_next:
+        if st.button("Find my resources →"):
+            st.session_state.pace = pace
+            st.session_state.goals = selected_goals
+            st.session_state.step = 4
+            st.rerun()
+
+# ─── STEP 4: Results ──────────────────────────────────────────────────────────
+elif st.session_state.step == 4:
+    show_progress(4)
+
+    # Summary chips
+    chips = []
+    chips.append(f'<span class="tag">{st.session_state.query}</span>')
+    if st.session_state.level != "Any":
+        chips.append(f'<span class="tag">{st.session_state.level}</span>')
+    for s in st.session_state.learning_styles:
+        chips.append(f'<span class="tag tag-style">{s}</span>')
+    if st.session_state.pace != "Any":
+        chips.append(f'<span class="tag">{st.session_state.pace}</span>')
+    for g in st.session_state.goals:
+        chips.append(f'<span class="tag tag-goal">{g}</span>')
+
+    st.markdown(f'<div style="margin-bottom:1.2rem;">{"".join(chips)}</div>', unsafe_allow_html=True)
+
+    with st.spinner("Finding your path..."):
+        results = search_resources(
+            st.session_state.query,
+            st.session_state.level,
+            st.session_state.learning_styles,
+            st.session_state.pace,
+            st.session_state.goals,
+        )
+
+    if not results:
+        st.warning("No resources matched — try starting over with broader filters.")
+    else:
+        with st.spinner("Getting your personalised recommendation..."):
+            ai_text = get_ai_recommendation(
+                st.session_state.query,
+                st.session_state.level,
+                st.session_state.learning_styles,
+                st.session_state.pace,
+                st.session_state.goals,
+                results,
+            )
+
+        st.markdown(f"""
+        <div class="ai-box">
+            <div class="ai-label">✦ SkillPath Recommendation</div>
+            <div style="color:#1e293b;font-size:0.97rem;line-height:1.6;">{ai_text}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"### {len(results)} resource{'s' if len(results) != 1 else ''} found")
+
+        for r in results:
+            render_card(r)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("← Start over"):
+        for key in ["step", "query", "level", "learning_styles", "pace", "goals"]:
+            del st.session_state[key]
+        st.rerun()
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown('<hr class="divider">', unsafe_allow_html=True)
