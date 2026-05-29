@@ -2,7 +2,7 @@ import os
 import datetime
 import streamlit as st
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 from groq import Groq
 
 # ── Load secrets ──────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ footer { visibility: hidden; }
 # ── Clients ───────────────────────────────────────────────────────────────────
 @st.cache_resource
 def get_es_client():
-    return Elasticsearch(ELASTIC_ENDPOINT, api_key=ELASTIC_API_KEY)
+    return OpenSearch(os.environ.get("BONSAI_URL", ""), verify_certs=False)
 
 @st.cache_resource
 def get_groq_client():

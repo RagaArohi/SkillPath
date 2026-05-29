@@ -1,5 +1,5 @@
 streamlit==1.45.0
-elasticsearch==9.4.0
-elastic-transport>=9.1,<10
+opensearch-py==3.2.0
 groq==1.4.0
 python-dotenv
+ 

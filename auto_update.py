@@ -2,7 +2,7 @@
 auto_update.py — SkillPath Weekly Resource Updater
 ----------------------------------------------------
 Discovers new free tech learning resources using Groq + LLaMA,
-then indexes them into Elasticsearch if they don't already exist.
+then indexes them into Bonsai (OpenSearch) if they don't already exist.
 
 Run manually:   python auto_update.py
 Run weekly:     Schedule via GitHub Actions (see .github/workflows/update.yml)
@@ -13,15 +13,15 @@ import json
 import time
 import sys
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 from groq import Groq
 
 load_dotenv()
 
 # ── Clients ───────────────────────────────────────────────────────────────────
-es = Elasticsearch(
-    os.environ.get("ELASTIC_ENDPOINT", ""),
-    api_key=os.environ.get("ELASTIC_API_KEY", ""),
+es = OpenSearch(
+    os.environ.get("BONSAI_URL", ""),
+    verify_certs=False,
 )
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
 
@@ -86,12 +86,14 @@ Respond ONLY with a valid JSON array. No explanation, no markdown fences. Start 
             max_tokens=4000,
             temperature=0.3,
         )
-        raw = response.choices[0].message.content.strip()
+        raw = (response.choices[0].message.content or "").strip()
 
         # Strip markdown fences if present
         if "```" in raw:
             parts = raw.split("```")
             for part in parts:
+                if not part:
+                    continue
                 part = part.strip()
                 if part.startswith("json"):
                     part = part[4:].strip()
@@ -100,23 +102,26 @@ Respond ONLY with a valid JSON array. No explanation, no markdown fences. Start 
                     break
 
         resources = json.loads(raw)
-        print(f"   ✓ Got {len(resources)} resources")
+        print(f"   ✔ Got {len(resources)} resources")
         return resources
 
     except json.JSONDecodeError as e:
-        print(f"   ✗ JSON error: {e}")
+        print(f"   ✘ JSON error: {e}")
         return []
     except Exception as e:
-        print(f"   ✗ Error: {e}")
+        print(f"   ✘ Error: {e}")
         return []
 
 
 def resource_exists(title: str) -> bool:
+    """Check if a resource with this title already exists in the index."""
     try:
         result = es.search(
             index=INDEX,
-            body={"query": {"match_phrase": {"title": title}}},
-            size=1,
+            body={
+                "query": {"match_phrase": {"title": title}},
+                "size": 1,
+            },
         )
         return result["hits"]["total"]["value"] > 0
     except Exception:
@@ -144,10 +149,10 @@ def validate_resource(r: dict) -> bool:
 
 def index_resource(r: dict) -> bool:
     try:
-        es.index(index=INDEX, document=r)
+        es.index(index=INDEX, body=r)
         return True
     except Exception as e:
-        print(f"   ✗ Index error: {e}")
+        print(f"   ✘ Index error: {e}")
         return False
 
 
@@ -166,8 +171,8 @@ def run_update(topics=None, count_per_topic=3):
     if topics is None:
         topics = get_weekly_batch()
 
-    print(f"\n📚 Topics: {', '.join(topics)}")
-    print(f"📊 Resources before: {get_index_count()}")
+    print(f"\n📋 Topics: {', '.join(topics)}")
+    print(f"📈 Resources before: {get_index_count()}")
 
     new_resources = discover_resources(topics, count_per_topic)
 
@@ -177,13 +182,13 @@ def run_update(topics=None, count_per_topic=3):
 
     added = skipped = invalid = 0
 
-    print(f"\n📥 Processing {len(new_resources)} resources...")
+    print(f"\n📑 Processing {len(new_resources)} resources...")
 
     for r in new_resources:
         title = r.get("title", "Unknown")
 
         if not validate_resource(r):
-            print(f"   ✗ Invalid schema — {title}")
+            print(f"   ✘ Invalid schema — {title}")
             invalid += 1
             continue
 
@@ -193,7 +198,7 @@ def run_update(topics=None, count_per_topic=3):
             continue
 
         if index_resource(r):
-            print(f"   ✓ Added      — {title} ({r.get('topic')} · {r.get('level')})")
+            print(f"   ✔ Added      — {title} ({r.get('topic')} · {r.get('level')})")
             added += 1
         else:
             invalid += 1
@@ -201,8 +206,8 @@ def run_update(topics=None, count_per_topic=3):
     print("\n" + "=" * 60)
     print(f"  ✅ Added:    {added}")
     print(f"  ~  Skipped:  {skipped} (duplicates)")
-    print(f"  ✗  Invalid:  {invalid}")
-    print(f"  📊 Total now: {get_index_count()}")
+    print(f"  ✘  Invalid:  {invalid}")
+    print(f"  📈 Total now: {get_index_count()}")
     print("=" * 60)
 
 

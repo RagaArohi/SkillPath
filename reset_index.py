@@ -1,17 +1,19 @@
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
+from dotenv import load_dotenv
+import os
 
-client = Elasticsearch(
-    "https://my-elasticsearch-project-b4fa48.es.us-central1.gcp.elastic.cloud",
-    api_key="RndsZ2FwNEI0U3MzYXpybFV3TXA6TGNkZVNzUl9YSnhhTXhkNkxhcUppUQ=="
-)
-
-# Delete old index
-if client.indices.exists(index="cs-resources"):
-    client.indices.delete(index="cs-resources")
-    print("Old index deleted.")
+load_dotenv()
+client = OpenSearch(os.environ.get("BONSAI_URL", ""), verify_certs=False)
+# Delete old index if it exists
+try:
+    if client.indices.exists(index="cs-resources"):
+        client.indices.delete(index="cs-resources")
+        print("Old index deleted.")
+except Exception as e:
+    print(f"Note: {e}")
 
 # Create new index with updated schema
-client.indices.create(index="cs-resources", mappings={
+client.indices.create(index="cs-resources", body={"mappings": {
     "properties": {
         "title":          {"type": "text"},
         "url":            {"type": "keyword"},
@@ -24,5 +26,5 @@ client.indices.create(index="cs-resources", mappings={
         "pace":           {"type": "keyword"},
         "goal":           {"type": "keyword"}
     }
-})
+}})
 print("New index created with updated schema!")

@@ -1,8 +1,10 @@
-from elasticsearch import Elasticsearch
-
-client = Elasticsearch(
-    "https://my-elasticsearch-project-b4fa48.es.us-central1.gcp.elastic.cloud",
-    api_key="RndsZ2FwNEI0U3MzYXpybFV3TXA6TGNkZVNzUl9YSnhhTXhkNkxhcUppUQ=="
+from opensearchpy import OpenSearch
+import os
+from dotenv import load_dotenv
+load_dotenv()
+client = OpenSearch(
+    os.environ.get("BONSAI_URL", ""),
+    verify_certs=False,
 )
 
 resources = [
@@ -381,7 +383,7 @@ resources = [
 ]
 
 for i, resource in enumerate(resources):
-    client.index(index="cs-resources", id=i+1, document=resource)
+    client.index(index="cs-resources", body=resource)
     print(f"Indexed: {resource['title']}")
 
 print(f"\nDone! {len(resources)} resources indexed with learning styles.")
