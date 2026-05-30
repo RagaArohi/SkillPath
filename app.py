@@ -502,7 +502,27 @@ elif st.session_state.step == 4:
         )
 
     if not results:
-        st.warning("No resources matched — try starting over with broader filters.")
+        # Fallback 1: relax to query + level only
+        results = search_resources(
+            st.session_state.query, st.session_state.level,
+            [], "Any", [], size=6
+        )
+
+    if not results:
+        # Fallback 2: query only, any level
+        results = search_resources(
+            st.session_state.query, "Any", [], "Any", [], size=6
+        )
+
+    if not results:
+        # Nothing found at all — send back to Step 1
+        st.warning(f"We don't have resources for **{st.session_state.query}** yet. Try a topic like Python, Machine Learning, Web Development, or DSA.")
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("← Try a different topic"):
+            st.session_state.step  = 1
+            st.session_state.query = ""
+            st.rerun()
+        st.stop()
     else:
         with st.spinner("Getting your personalised recommendation..."):
             ai_text = get_ai_recommendation(
