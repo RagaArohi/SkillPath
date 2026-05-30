@@ -5,12 +5,9 @@ from dotenv import load_dotenv
 from opensearchpy import OpenSearch
 from groq import Groq
 
-# ── Load secrets ──────────────────────────────────────────────────────────────
 load_dotenv()
-
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
-# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="SkillPath",
     page_icon="🛤️",
@@ -18,95 +15,146 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=DM+Sans:wght@400;500&display=swap');
 
-html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
-h1, h2, h3 { font-family: 'Syne', sans-serif !important; }
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+    background-color: #0a0a0f !important;
+    color: #e2e8f0 !important;
+}
+h1, h2, h3 { font-family: 'Space Grotesk', sans-serif !important; }
+
+.main, .block-container {
+    background-color: #0a0a0f !important;
+    padding-top: 2rem !important;
+}
+
+section[data-testid="stSidebar"] { background-color: #0a0a0f !important; }
 
 .hero-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 3.2rem; font-weight: 800;
-    line-height: 1.1; color: #0f172a; margin-bottom: 0.3rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 3rem; font-weight: 800;
+    line-height: 1.1; color: #ffffff; margin-bottom: 0.3rem;
 }
 .hero-sub {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 1.1rem; color: #64748b; margin-bottom: 2rem;
+    font-size: 1rem; color: #475569; margin-bottom: 2rem;
 }
-.accent { color: #6366f1; }
+.accent { color: #a78bfa; }
+
+.step-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.4rem; font-weight: 700;
+    color: #ffffff; margin-bottom: 0.3rem;
+}
+.step-sub { font-size: 0.9rem; color: #475569; margin-bottom: 1rem; }
+.section-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.7rem; font-weight: 700;
+    color: #7c3aed; text-transform: uppercase;
+    letter-spacing: 0.12em; margin-bottom: 0.8rem;
+}
 
 .resource-card {
-    background: #ffffff; border: 1.5px solid #e2e8f0;
+    background: #13131f;
+    border: 1.5px solid #1e1e2e;
     border-radius: 14px; padding: 1.2rem 1.4rem;
-    margin-bottom: 1rem; transition: box-shadow 0.2s;
+    margin-bottom: 0.9rem; transition: border-color 0.2s;
 }
-.resource-card:hover {
-    box-shadow: 0 4px 20px rgba(99,102,241,0.12);
-    border-color: #a5b4fc;
-}
-.resource-card.active-step {
-    border-color: #6366f1;
-    box-shadow: 0 4px 20px rgba(99,102,241,0.18);
-}
-.resource-card.done-step { opacity: 0.6; }
-.resource-card.skipped-step { opacity: 0.5; }
+.resource-card:hover { border-color: #3b2f6e; }
+.resource-card.active-step { border-color: #7c3aed; box-shadow: 0 0 0 1px #7c3aed22; }
+.resource-card.done-step { opacity: 0.45; }
+.resource-card.skipped-step { opacity: 0.3; }
 
 .card-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.05rem; font-weight: 700;
-    color: #1e293b; margin-bottom: 0.2rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1rem; font-weight: 700;
+    color: #f1f5f9; margin-bottom: 0.2rem;
 }
-.card-meta { font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.5rem; }
-.card-desc { font-size: 0.9rem; color: #475569; margin-bottom: 0.7rem; }
+.card-meta { font-size: 0.78rem; color: #334155; margin-bottom: 0.5rem; }
+.card-desc { font-size: 0.88rem; color: #64748b; margin-bottom: 0.7rem; line-height: 1.5; }
 
 .tag {
-    display: inline-block; background: #f1f5f9; color: #475569;
-    border-radius: 6px; padding: 2px 10px;
-    font-size: 0.75rem; margin-right: 4px; margin-bottom: 4px;
+    display: inline-block; background: #1e1e2e; color: #475569;
+    border-radius: 6px; padding: 2px 9px;
+    font-size: 0.72rem; margin-right: 4px; margin-bottom: 4px;
 }
-.tag-style { background: #ede9fe; color: #6d28d9; }
-.tag-goal  { background: #dcfce7; color: #166534; }
-.tag-done  { background: #d1fae5; color: #065f46; }
-.tag-step  { background: #6366f1; color: #fff; font-weight: 700; }
+.tag-style { background: #2d1f6e; color: #a78bfa; }
+.tag-goal  { background: #0f2e1f; color: #34d399; }
+.tag-done  { background: #0f2e1f; color: #34d399; }
+.tag-step  { background: #7c3aed; color: #fff; font-weight: 700; }
 
 .ai-box {
-    background: linear-gradient(135deg, #eef2ff 0%, #f0fdf4 100%);
-    border: 1.5px solid #c7d2fe; border-radius: 14px;
-    padding: 1.4rem 1.6rem; margin-bottom: 2rem;
+    background: #13131f;
+    border: 1.5px solid #2d1f6e;
+    border-radius: 14px; padding: 1.3rem 1.5rem; margin-bottom: 1.5rem;
 }
 .ai-label {
-    font-family: 'Syne', sans-serif; font-size: 0.8rem;
-    font-weight: 700; color: #6366f1;
-    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.7rem;
+    font-weight: 700; color: #7c3aed;
+    text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.4rem;
 }
+.ai-text { color: #94a3b8; font-size: 0.92rem; line-height: 1.65; }
 
 .path-progress {
-    background: #f1f5f9; border-radius: 14px;
-    padding: 1rem 1.4rem; margin-bottom: 1.5rem;
+    background: #13131f; border-radius: 14px;
+    padding: 1rem 1.3rem; margin-bottom: 1.2rem;
+    display: flex; justify-content: space-between; align-items: center;
 }
+.path-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; color: #ffffff; font-size: 0.95rem;
+}
+.path-count { color: #7c3aed; font-weight: 700; font-size: 0.95rem; }
 
 .filter-panel {
-    background: #f8fafc; border: 1.5px solid #e2e8f0;
-    border-radius: 14px; padding: 1.2rem 1.4rem; margin-bottom: 1.5rem;
+    background: #13131f; border: 1.5px solid #1e1e2e;
+    border-radius: 14px; padding: 1.2rem 1.4rem; margin-bottom: 1.2rem;
 }
 
-.divider { border: none; border-top: 1.5px solid #f1f5f9; margin: 1.5rem 0; }
+.divider { border: none; border-top: 1px solid #1e1e2e; margin: 1.5rem 0; }
 
 .stButton > button {
-    background: #6366f1; color: white; border: none;
-    border-radius: 10px; padding: 0.55rem 1.8rem;
-    font-family: 'Syne', sans-serif; font-weight: 700;
-    font-size: 1rem; cursor: pointer; transition: background 0.2s;
+    background: #7c3aed !important; color: white !important; border: none !important;
+    border-radius: 10px !important; padding: 0.55rem 1.8rem !important;
+    font-family: 'Space Grotesk', sans-serif !important; font-weight: 700 !important;
+    font-size: 0.95rem !important; cursor: pointer !important;
+    transition: background 0.2s !important;
 }
-.stButton > button:hover { background: #4f46e5; }
+.stButton > button:hover { background: #6d28d9 !important; }
+
+.stTextInput > div > div > input {
+    background: #13131f !important; color: #e2e8f0 !important;
+    border: 1.5px solid #1e1e2e !important; border-radius: 10px !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #7c3aed !important;
+    box-shadow: none !important;
+}
+
+.stRadio > div { gap: 0.5rem; }
+.stRadio label { color: #94a3b8 !important; }
+.stCheckbox label { color: #94a3b8 !important; }
+.stSelectbox > div > div { background: #13131f !important; color: #e2e8f0 !important; border-color: #1e1e2e !important; }
+.stMultiSelect > div > div { background: #13131f !important; color: #e2e8f0 !important; border-color: #1e1e2e !important; }
+
+div[data-testid="stExpander"] {
+    background: #13131f !important; border: 1.5px solid #1e1e2e !important;
+    border-radius: 14px !important;
+}
+div[data-testid="stExpander"] summary { color: #a78bfa !important; }
+
+.stSpinner > div { border-top-color: #7c3aed !important; }
+.stWarning { background: #1a1410 !important; color: #f59e0b !important; border-color: #78350f !important; }
+.stSuccess { background: #0f2e1f !important; color: #34d399 !important; border-color: #065f46 !important; }
+
 footer { visibility: hidden; }
+#MainMenu { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ── Clients ───────────────────────────────────────────────────────────────────
 @st.cache_resource
 def get_es_client():
     return OpenSearch(os.environ.get("BONSAI_URL", ""), verify_certs=False)
@@ -116,7 +164,6 @@ def get_groq_client():
     return Groq(api_key=GROQ_API_KEY)
 
 
-# ── Elasticsearch: user paths ─────────────────────────────────────────────────
 def ensure_user_paths_index():
     es = get_es_client()
     if not es.indices.exists(index="user_paths"):
@@ -171,7 +218,6 @@ def update_path_only(email, path):
         }})
 
 
-# ── Search ────────────────────────────────────────────────────────────────────
 def search_resources(query, level, learning_styles, pace, goals, exclude_urls=None, size=8):
     es = get_es_client()
     must = [{"multi_match": {
@@ -201,7 +247,6 @@ def search_resources(query, level, learning_styles, pace, goals, exclude_urls=No
         return []
 
 
-# ── AI recommendation ─────────────────────────────────────────────────────────
 def get_ai_recommendation(query, level, learning_styles, pace, goals, resources):
     groq = get_groq_client()
     resource_titles = [r["title"] for r in resources[:6]]
@@ -228,7 +273,6 @@ Give a warm, encouraging 2–3 sentence recommendation. Tell them which resource
         return f"(AI recommendation unavailable: {e})"
 
 
-# ── Build path from resources ─────────────────────────────────────────────────
 def build_path(resources):
     return [{
         "title":          r.get("title", ""),
@@ -244,7 +288,6 @@ def build_path(resources):
     } for r in resources]
 
 
-# ── Resource card ─────────────────────────────────────────────────────────────
 def render_card(r, step_num=None, show_feedback=False, idx=None, email=None):
     status = r.get("status", "pending")
     card_class = "resource-card"
@@ -264,8 +307,8 @@ def render_card(r, step_num=None, show_feedback=False, idx=None, email=None):
     st.markdown(f"""
     <div class="{card_class}">
         <div class="card-title">{step_badge}{done_badge}{skip_badge}
-            🔗 <a href="{r.get('url','#')}" target="_blank"
-               style="color:#1e293b;text-decoration:none;">{r.get('title','')}</a>
+            <a href="{r.get('url','#')}" target="_blank"
+               style="color:#f1f5f9;text-decoration:none;">🔗 {r.get('title','')}</a>
         </div>
         <div class="card-meta">{r.get('topic','')} &nbsp;·&nbsp; {type_tag} {level_tag} {pace_tag}</div>
         <div class="card-desc">{r.get('description','')}</div>
@@ -301,7 +344,6 @@ def render_card(r, step_num=None, show_feedback=False, idx=None, email=None):
             st.rerun()
 
 
-# ── Session state init ────────────────────────────────────────────────────────
 defaults = {
     "step": 0, "query": "", "level": "Any",
     "learning_styles": [], "pace": "Any", "goals": [],
@@ -312,26 +354,29 @@ for k, v in defaults.items():
         st.session_state[k] = v
 
 
-# ── Progress bar ──────────────────────────────────────────────────────────────
 def show_progress(step, total=4):
     pct = int((step - 1) / total * 100)
     st.markdown(f"""
     <div style="margin-bottom:1.5rem;">
         <div style="display:flex;justify-content:space-between;
-                    font-size:0.78rem;color:#94a3b8;margin-bottom:6px;">
-            <span>Step {step} of {total}</span><span>{pct}% done</span>
+                    font-size:0.72rem;color:#334155;margin-bottom:6px;
+                    font-family:'Space Grotesk',sans-serif;font-weight:700;
+                    text-transform:uppercase;letter-spacing:0.08em;">
+            <span style="color:#7c3aed;">Step {step} of {total}</span>
+            <span>{pct}% done</span>
         </div>
-        <div style="background:#f1f5f9;border-radius:99px;height:6px;">
-            <div style="background:#6366f1;width:{pct}%;height:6px;
-                        border-radius:99px;transition:width 0.4s;"></div>
+        <div style="background:#13131f;border-radius:99px;height:5px;">
+            <div style="background:linear-gradient(90deg,#7c3aed,#a78bfa);
+                        width:{pct}%;height:5px;border-radius:99px;
+                        transition:width 0.4s;"></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-def step_label(text):
+def step_label(text, sub=None):
     st.markdown(f"""
-    <div style="font-family:'Syne',sans-serif;font-size:1.5rem;
-                font-weight:800;color:#0f172a;margin-bottom:0.3rem;">{text}</div>
+    <div class="step-label">{text}</div>
+    {"" if not sub else f'<div class="step-sub">{sub}</div>'}
     """, unsafe_allow_html=True)
 
 
@@ -345,8 +390,7 @@ st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
 # ── STEP 0: Email ─────────────────────────────────────────────────────────────
 if st.session_state.step == 0:
-    step_label("Let's save your progress 💾")
-    st.markdown('<div style="color:#64748b;margin-bottom:1rem;">Enter your email so you can pick up where you left off — no password needed.</div>', unsafe_allow_html=True)
+    step_label("Let's save your progress 💾", "Enter your email to pick up where you left off — no password needed.")
 
     email = st.text_input("Email", placeholder="you@example.com", label_visibility="collapsed")
 
@@ -376,14 +420,13 @@ if st.session_state.step == 0:
                 st.warning("Please enter a valid email.")
 
 
-# ─── STEP 1: Topic ────────────────────────────────────────────────────────────
+# ── STEP 1: Topic ─────────────────────────────────────────────────────────────
 elif st.session_state.step == 1:
     show_progress(1)
-    step_label("What do you want to learn? 🎯")
-    st.markdown('<div style="color:#64748b;margin-bottom:1rem;">Type a topic — anything you\'re curious about.</div>', unsafe_allow_html=True)
+    step_label("What do you want to learn? 🎯", "Type a topic — anything you're curious about.")
 
     query = st.text_input("Topic", value=st.session_state.query,
-        placeholder="e.g. Python, machine learning, web development, DSA...",
+        placeholder="e.g. Python, machine learning, cybersecurity, DSA...",
         label_visibility="collapsed")
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -396,18 +439,17 @@ elif st.session_state.step == 1:
             st.warning("Please enter a topic to continue.")
 
 
-# ─── STEP 2: Level + Learning style ──────────────────────────────────────────
+# ── STEP 2: Level + Learning style ───────────────────────────────────────────
 elif st.session_state.step == 2:
     show_progress(2)
-    step_label("How much do you already know? 📚")
-    st.markdown(f'<div style="color:#64748b;margin-bottom:1rem;">You want to learn: <strong>{st.session_state.query}</strong></div>', unsafe_allow_html=True)
+    step_label("How much do you already know? 📚",
+               f'Learning: <strong style="color:#a78bfa">{st.session_state.query}</strong>')
 
     level = st.radio("Your level", ["Beginner", "Intermediate", "Advanced", "Not sure"],
         index=0, horizontal=True, label_visibility="collapsed")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    step_label("How do you learn best? 🧠")
-    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Pick everything that fits you.</div>', unsafe_allow_html=True)
+    step_label("How do you learn best? 🧠", "Pick everything that fits you.")
 
     style_options = {
         "📹 Watch videos": "visual",
@@ -436,11 +478,10 @@ elif st.session_state.step == 2:
             st.rerun()
 
 
-# ─── STEP 3: Pace + Goal ──────────────────────────────────────────────────────
+# ── STEP 3: Pace + Goal ───────────────────────────────────────────────────────
 elif st.session_state.step == 3:
     show_progress(3)
-    step_label("What's your pace? ⏱️")
-    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Be honest — there\'s no wrong answer.</div>', unsafe_allow_html=True)
+    step_label("What's your pace? ⏱️", "Be honest — there's no wrong answer.")
 
     pace_options = {
         "🐢 Self-paced — I go at my own speed": "self-paced",
@@ -452,8 +493,7 @@ elif st.session_state.step == 3:
     pace = pace_options[pace_label]
 
     st.markdown("<br>", unsafe_allow_html=True)
-    step_label("What's your goal? 🏁")
-    st.markdown('<div style="color:#64748b;margin-bottom:0.8rem;">Pick everything that applies.</div>', unsafe_allow_html=True)
+    step_label("What's your goal? 🏁", "Pick everything that applies.")
 
     goal_options = {
         "🧩 Understand concepts deeply": "understand concepts",
@@ -479,7 +519,7 @@ elif st.session_state.step == 3:
             st.rerun()
 
 
-# ─── STEP 4: Build path ───────────────────────────────────────────────────────
+# ── STEP 4: Build path ────────────────────────────────────────────────────────
 elif st.session_state.step == 4:
     show_progress(4)
 
@@ -502,21 +542,18 @@ elif st.session_state.step == 4:
         )
 
     if not results:
-        # Fallback 1: relax to query + level only
         results = search_resources(
             st.session_state.query, st.session_state.level,
             [], "Any", [], size=6
         )
 
     if not results:
-        # Fallback 2: query only, any level
         results = search_resources(
             st.session_state.query, "Any", [], "Any", [], size=6
         )
 
     if not results:
-        # Nothing found at all — send back to Step 1
-        st.warning(f"We don't have resources for **{st.session_state.query}** yet. Try a topic like Python, Machine Learning, Web Development, or DSA.")
+        st.warning(f"We don't have resources for **{st.session_state.query}** yet. Try Python, Machine Learning, Cybersecurity, Web Dev, or DSA.")
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("← Try a different topic"):
             st.session_state.step  = 1
@@ -545,74 +582,57 @@ elif st.session_state.step == 4:
         st.rerun()
 
 
-# ─── STEP 5: Learning path view ───────────────────────────────────────────────
+# ── STEP 5: Learning path view ────────────────────────────────────────────────
 elif st.session_state.step == 5:
     path  = st.session_state.path
     email = st.session_state.email
 
-    # AI box
     if st.session_state.ai_text:
         st.markdown(f"""
         <div class="ai-box">
             <div class="ai-label">✦ SkillPath Recommendation</div>
-            <div style="color:#1e293b;font-size:0.97rem;line-height:1.6;">{st.session_state.ai_text}</div>
+            <div class="ai-text">{st.session_state.ai_text}</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # Progress summary
     done_count = sum(1 for r in path if r["status"] == "done")
     total      = len(path)
     pct        = int(done_count / total * 100) if total else 0
+
     st.markdown(f"""
     <div class="path-progress">
-        <div style="display:flex;justify-content:space-between;
-                    font-family:'Syne',sans-serif;font-weight:700;
-                    color:#1e293b;margin-bottom:8px;">
-            <span>🗺️ Your Learning Path</span>
-            <span style="color:#6366f1;">{done_count}/{total} done</span>
-        </div>
-        <div style="background:#e2e8f0;border-radius:99px;height:8px;">
-            <div style="background:#6366f1;width:{pct}%;height:8px;
-                        border-radius:99px;transition:width 0.4s;"></div>
-        </div>
+        <span class="path-label">🗺️ Your Learning Path</span>
+        <span class="path-count">{done_count}/{total} done</span>
+    </div>
+    <div style="background:#13131f;border-radius:99px;height:6px;margin-bottom:1.5rem;">
+        <div style="background:linear-gradient(90deg,#7c3aed,#a78bfa);
+                    width:{pct}%;height:6px;border-radius:99px;transition:width 0.4s;"></div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Re-filter panel ───────────────────────────────────────────────────────
     with st.expander("🔧 Refine your results"):
-        st.markdown('<div style="color:#64748b;font-size:0.9rem;margin-bottom:1rem;">Adjust filters to find better matches — results update instantly.</div>', unsafe_allow_html=True)
-
+        st.markdown('<div style="color:#475569;font-size:0.88rem;margin-bottom:1rem;">Adjust filters to find better matches.</div>', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
-
         with col1:
-            new_level = st.selectbox(
-                "Level",
+            new_level = st.selectbox("Level",
                 ["Any", "Beginner", "Intermediate", "Advanced"],
                 index=["Any", "Beginner", "Intermediate", "Advanced"].index(
                     st.session_state.level if st.session_state.level in ["Any", "Beginner", "Intermediate", "Advanced"] else "Any"
                 ),
             )
-            new_pace = st.selectbox(
-                "Pace",
+            new_pace = st.selectbox("Pace",
                 ["Any", "self-paced", "structured", "micro-learning"],
                 index=["Any", "self-paced", "structured", "micro-learning"].index(
                     st.session_state.pace if st.session_state.pace in ["Any", "self-paced", "structured", "micro-learning"] else "Any"
                 ),
             )
-
         with col2:
             style_opts = ["visual", "audio", "text", "hands-on", "reference"]
-            new_styles = st.multiselect(
-                "Learning style",
-                style_opts,
-                default=[s for s in st.session_state.learning_styles if s in style_opts],
-            )
+            new_styles = st.multiselect("Learning style", style_opts,
+                default=[s for s in st.session_state.learning_styles if s in style_opts])
             goal_opts = ["understand concepts", "build projects", "get interview-ready", "learn tools"]
-            new_goals = st.multiselect(
-                "Goals",
-                goal_opts,
-                default=[g for g in st.session_state.goals if g in goal_opts],
-            )
+            new_goals = st.multiselect("Goals", goal_opts,
+                default=[g for g in st.session_state.goals if g in goal_opts])
 
         if st.button("🔄 Apply filters"):
             st.session_state.level           = new_level
@@ -626,35 +646,25 @@ elif st.session_state.step == 5:
             if new_results:
                 st.session_state.path = build_path(new_results)
                 if email:
-                    save_user_profile(
-                        email, st.session_state.query, new_level,
-                        new_styles, new_pace, new_goals, st.session_state.path
-                    )
+                    save_user_profile(email, st.session_state.query, new_level,
+                        new_styles, new_pace, new_goals, st.session_state.path)
                 st.rerun()
             else:
-                st.warning("No resources matched those filters — try broadening them.")
+                st.warning("No resources matched — try broadening your filters.")
 
-    # Find first pending
     first_pending = next((i for i, r in enumerate(path) if r["status"] == "pending"), -1)
 
     for i, resource in enumerate(path):
-        is_active = (i == first_pending)
-        render_card(
-            resource,
-            step_num=i + 1,
-            show_feedback=is_active,
-            idx=i,
-            email=email if email else None
-        )
+        render_card(resource, step_num=i+1, show_feedback=(i == first_pending),
+                    idx=i, email=email if email else None)
 
-    # Completion
     if all(r["status"] in ("done", "skipped") for r in path):
         st.balloons()
         st.success("🎓 You've finished your learning path! Start over to explore a new topic.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("← Start over"):
-        for key in ["step", "query", "level", "learning_styles", "pace", "goals", "path", "ai_text", "email"]:
+        for key in ["step","query","level","learning_styles","pace","goals","path","ai_text","email"]:
             st.session_state.pop(key, None)
         st.rerun()
 
@@ -662,9 +672,9 @@ elif st.session_state.step == 5:
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown('<hr class="divider">', unsafe_allow_html=True)
 st.markdown(
-    '<div style="text-align:center;color:#94a3b8;font-size:0.82rem;">'
-    'Built by <strong>Ragamrutha Chettupalli</strong> · '
-    '<a href="https://github.com/RagaArohi/SkillPath" style="color:#6366f1;">GitHub</a>'
+    '<div style="text-align:center;color:#1e1e2e;font-size:0.8rem;">'
+    'Built by <strong style="color:#334155">Ragamrutha Chettupalli</strong> · '
+    '<a href="https://github.com/RagaArohi/SkillPath" style="color:#7c3aed;">GitHub</a>'
     '</div>',
     unsafe_allow_html=True,
 )
