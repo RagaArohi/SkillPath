@@ -2,12 +2,14 @@ from opensearchpy import OpenSearch
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
 client = OpenSearch(
     os.environ.get("BONSAI_URL", ""),
     verify_certs=False,
 )
 
 resources = [
+    # ── ORIGINAL 31 RESOURCES ─────────────────────────────────────────────────
     {
         "title": "CS50P - Introduction to Programming with Python",
         "url": "https://cs50.harvard.edu/python",
@@ -379,11 +381,432 @@ resources = [
         "learning_style": ["reference"],
         "pace": "self-paced",
         "goal": ["learn tools", "build projects"]
-    }
+    },
+
+    # ── NEW: CYBERSECURITY ────────────────────────────────────────────────────
+    {
+        "title": "TryHackMe - Learn Cybersecurity",
+        "url": "https://tryhackme.com",
+        "type": "course",
+        "topic": "Cybersecurity",
+        "level": "beginner",
+        "free": True,
+        "description": "Free beginner-friendly cybersecurity platform. Learn hacking and defense through browser-based labs. No setup needed.",
+        "learning_style": ["hands-on", "visual"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "build projects", "learn tools"]
+    },
+    {
+        "title": "Hack The Box - Cybersecurity Training",
+        "url": "https://www.hackthebox.com",
+        "type": "practice",
+        "topic": "Cybersecurity",
+        "level": "intermediate",
+        "free": True,
+        "description": "Real-world hacking challenges and labs. Free tier available. Build practical penetration testing skills.",
+        "learning_style": ["hands-on"],
+        "pace": "self-paced",
+        "goal": ["build projects", "get interview-ready", "learn tools"]
+    },
+    {
+        "title": "Google Cybersecurity Certificate - Coursera (Audit Free)",
+        "url": "https://www.coursera.org/professional-certificates/google-cybersecurity",
+        "type": "course",
+        "topic": "Cybersecurity",
+        "level": "beginner",
+        "free": True,
+        "description": "Google's cybersecurity career certificate. Audit for free on Coursera. Covers networks, Linux, Python, and threat detection.",
+        "learning_style": ["visual", "text", "hands-on"],
+        "pace": "structured",
+        "goal": ["understand concepts", "get interview-ready", "learn tools"]
+    },
+    {
+        "title": "Cybrary - Free Cybersecurity Courses",
+        "url": "https://www.cybrary.it",
+        "type": "course",
+        "topic": "Cybersecurity",
+        "level": "beginner",
+        "free": True,
+        "description": "Free cybersecurity training platform with courses on ethical hacking, network security, and cloud security.",
+        "learning_style": ["visual", "audio", "text"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "learn tools", "get interview-ready"]
+    },
+    {
+        "title": "OWASP - Web Security Testing Guide",
+        "url": "https://owasp.org/www-project-web-security-testing-guide",
+        "type": "reference",
+        "topic": "Cybersecurity",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free guide to web application security testing. Industry standard reference for understanding web vulnerabilities.",
+        "learning_style": ["text", "reference"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "build projects", "learn tools"]
+    },
+    {
+        "title": "Roadmap.sh - Cybersecurity Roadmap",
+        "url": "https://roadmap.sh/cyber-security",
+        "type": "roadmap",
+        "topic": "Cybersecurity",
+        "level": "beginner",
+        "free": True,
+        "description": "Visual step-by-step roadmap to become a cybersecurity professional. Know exactly what to learn and in what order.",
+        "learning_style": ["visual", "reference"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "learn tools"]
+    },
+
+    # ── NEW: DSA & COMPETITIVE PROGRAMMING ───────────────────────────────────
+    {
+        "title": "NeetCode - DSA Roadmap and Solutions",
+        "url": "https://neetcode.io",
+        "type": "course",
+        "topic": "Data Structures and Algorithms",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free DSA roadmap with video solutions for LeetCode problems. Best resource for placement preparation in India.",
+        "learning_style": ["visual", "audio", "hands-on"],
+        "pace": "self-paced",
+        "goal": ["get interview-ready", "understand concepts"]
+    },
+    {
+        "title": "Codeforces - Competitive Programming",
+        "url": "https://codeforces.com",
+        "type": "practice",
+        "topic": "Competitive Programming",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free competitive programming platform with regular contests. Build problem-solving speed and logic for coding rounds.",
+        "learning_style": ["hands-on"],
+        "pace": "self-paced",
+        "goal": ["get interview-ready", "build projects"]
+    },
+    {
+        "title": "GeeksforGeeks - DSA",
+        "url": "https://www.geeksforgeeks.org/data-structures",
+        "type": "reference",
+        "topic": "Data Structures and Algorithms",
+        "level": "beginner",
+        "free": True,
+        "description": "Free DSA tutorials with code examples in Python, Java, C++. Widely used by Indian CS students for placements.",
+        "learning_style": ["text", "reference", "hands-on"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "get interview-ready"]
+    },
+    {
+        "title": "CP-Algorithms",
+        "url": "https://cp-algorithms.com",
+        "type": "reference",
+        "topic": "Competitive Programming",
+        "level": "advanced",
+        "free": True,
+        "description": "Free collection of competitive programming algorithms with explanations and code. Essential for ICPC and coding contests.",
+        "learning_style": ["text", "reference"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "get interview-ready"]
+    },
+
+    # ── NEW: CLOUD & DEVOPS ───────────────────────────────────────────────────
+    {
+        "title": "AWS Training - Free Digital Courses",
+        "url": "https://aws.amazon.com/training/digital",
+        "type": "course",
+        "topic": "Cloud / AWS",
+        "level": "beginner",
+        "free": True,
+        "description": "Free AWS training courses and labs. Learn cloud fundamentals directly from Amazon. Great for cloud certifications.",
+        "learning_style": ["visual", "hands-on", "text"],
+        "pace": "self-paced",
+        "goal": ["learn tools", "get interview-ready", "build projects"]
+    },
+    {
+        "title": "KodeKloud - DevOps Free Courses",
+        "url": "https://kodekloud.com/courses/",
+        "type": "course",
+        "topic": "DevOps",
+        "level": "beginner",
+        "free": True,
+        "description": "Free DevOps courses on Docker, Kubernetes, Linux, and shell scripting with browser-based labs.",
+        "learning_style": ["visual", "hands-on"],
+        "pace": "self-paced",
+        "goal": ["learn tools", "build projects"]
+    },
+    {
+        "title": "Roadmap.sh - DevOps Roadmap",
+        "url": "https://roadmap.sh/devops",
+        "type": "roadmap",
+        "topic": "DevOps",
+        "level": "beginner",
+        "free": True,
+        "description": "Visual roadmap to become a DevOps engineer. Covers Linux, Docker, Kubernetes, CI/CD and cloud platforms.",
+        "learning_style": ["visual", "reference"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "learn tools"]
+    },
+
+    # ── NEW: SYSTEM DESIGN ────────────────────────────────────────────────────
+    {
+        "title": "System Design Primer - GitHub",
+        "url": "https://github.com/donnemartin/system-design-primer",
+        "type": "reference",
+        "topic": "System Design",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free GitHub repo covering system design concepts. Essential for senior tech interviews at top Indian and global companies.",
+        "learning_style": ["text", "visual", "reference"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "get interview-ready"]
+    },
+    {
+        "title": "ByteByteGo - System Design YouTube",
+        "url": "https://www.youtube.com/@ByteByteGo",
+        "type": "video",
+        "topic": "System Design",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free YouTube channel explaining system design concepts visually. Short, clear videos on scalability and architecture.",
+        "learning_style": ["visual", "audio"],
+        "pace": "micro-learning",
+        "goal": ["understand concepts", "get interview-ready"]
+    },
+
+    # ── NEW: LINUX & NETWORKING ───────────────────────────────────────────────
+    {
+        "title": "Linux Journey - Free Linux Learning",
+        "url": "https://linuxjourney.com",
+        "type": "course",
+        "topic": "Linux",
+        "level": "beginner",
+        "free": True,
+        "description": "Free interactive Linux course covering command line, filesystems, networking. Learn Linux fundamentals step by step.",
+        "learning_style": ["text", "hands-on"],
+        "pace": "self-paced",
+        "goal": ["learn tools", "understand concepts"]
+    },
+    {
+        "title": "Computer Networking Full Course - freeCodeCamp YouTube",
+        "url": "https://www.youtube.com/watch?v=qiQR5rTSshw",
+        "type": "video",
+        "topic": "Networking",
+        "level": "beginner",
+        "free": True,
+        "description": "Free 9-hour networking course on YouTube. Covers TCP/IP, DNS, HTTP, and how the internet works. Great for interviews.",
+        "learning_style": ["visual", "audio"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "get interview-ready"]
+    },
+
+    # ── NEW: JAVA & BACKEND ───────────────────────────────────────────────────
+    {
+        "title": "Java Programming - MOOC Helsinki",
+        "url": "https://java-programming.mooc.fi",
+        "type": "course",
+        "topic": "Java",
+        "level": "beginner",
+        "free": True,
+        "description": "Free comprehensive Java course from University of Helsinki. 200+ exercises. Best free Java course available online.",
+        "learning_style": ["text", "hands-on"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "build projects", "get interview-ready"]
+    },
+    {
+        "title": "Spring Boot - Official Guides",
+        "url": "https://spring.io/guides",
+        "type": "reference",
+        "topic": "Backend Development",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free official Spring Boot guides and tutorials. Learn Java backend development with the most popular enterprise framework.",
+        "learning_style": ["text", "hands-on", "reference"],
+        "pace": "self-paced",
+        "goal": ["build projects", "learn tools"]
+    },
+
+    # ── NEW: DATABASE ─────────────────────────────────────────────────────────
+    {
+        "title": "SQLZoo - Interactive SQL Tutorial",
+        "url": "https://sqlzoo.net",
+        "type": "practice",
+        "topic": "SQL",
+        "level": "beginner",
+        "free": True,
+        "description": "Free interactive SQL practice directly in browser. Learn SQL by writing queries on real datasets immediately.",
+        "learning_style": ["hands-on", "text"],
+        "pace": "micro-learning",
+        "goal": ["learn tools", "get interview-ready"]
+    },
+    {
+        "title": "MongoDB University - Free Courses",
+        "url": "https://learn.mongodb.com",
+        "type": "course",
+        "topic": "Database / MongoDB",
+        "level": "beginner",
+        "free": True,
+        "description": "Free official MongoDB courses and certifications. Learn NoSQL database design and querying from MongoDB directly.",
+        "learning_style": ["visual", "hands-on", "text"],
+        "pace": "self-paced",
+        "goal": ["learn tools", "build projects"]
+    },
+
+    # ── NEW: MATHEMATICS FOR CS ───────────────────────────────────────────────
+    {
+        "title": "3Blue1Brown - Essence of Linear Algebra",
+        "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2ZAgoER_jCDKDv",
+        "type": "video",
+        "topic": "Mathematics for ML",
+        "level": "beginner",
+        "free": True,
+        "description": "Beautiful visual series on linear algebra. Essential foundation for machine learning. Best math videos on YouTube.",
+        "learning_style": ["visual", "audio"],
+        "pace": "self-paced",
+        "goal": ["understand concepts"]
+    },
+    {
+        "title": "Khan Academy - Statistics and Probability",
+        "url": "https://www.khanacademy.org/math/statistics-probability",
+        "type": "course",
+        "topic": "Mathematics for ML",
+        "level": "beginner",
+        "free": True,
+        "description": "Free statistics course essential for data science and ML. Clear explanations with practice exercises.",
+        "learning_style": ["visual", "audio", "hands-on"],
+        "pace": "self-paced",
+        "goal": ["understand concepts"]
+    },
+
+    # ── NEW: REACT & FRONTEND ─────────────────────────────────────────────────
+    {
+        "title": "React Official Tutorial - React.dev",
+        "url": "https://react.dev/learn",
+        "type": "course",
+        "topic": "React",
+        "level": "beginner",
+        "free": True,
+        "description": "Free official React tutorial. Learn React by building a game. Best starting point for modern frontend development.",
+        "learning_style": ["text", "hands-on"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "build projects"]
+    },
+    {
+        "title": "Roadmap.sh - React Developer Roadmap",
+        "url": "https://roadmap.sh/react",
+        "type": "roadmap",
+        "topic": "React",
+        "level": "beginner",
+        "free": True,
+        "description": "Visual roadmap to become a React developer. Know exactly what to learn from basics to advanced concepts.",
+        "learning_style": ["visual", "reference"],
+        "pace": "self-paced",
+        "goal": ["understand concepts", "learn tools"]
+    },
+
+    # ── NEW: OPEN SOURCE & GIT ────────────────────────────────────────────────
+    {
+        "title": "First Contributions - Open Source Guide",
+        "url": "https://firstcontributions.github.io",
+        "type": "course",
+        "topic": "Open Source / Git",
+        "level": "beginner",
+        "free": True,
+        "description": "Free guide to making your first open source contribution. Step-by-step with practice repo. Build your GitHub profile.",
+        "learning_style": ["hands-on", "text"],
+        "pace": "micro-learning",
+        "goal": ["build projects", "learn tools"]
+    },
+    {
+        "title": "Pro Git Book - Free Online",
+        "url": "https://git-scm.com/book/en/v2",
+        "type": "reference",
+        "topic": "Git / Version Control",
+        "level": "beginner",
+        "free": True,
+        "description": "The official free Git book. Complete reference for Git from basics to advanced. Available online at no cost.",
+        "learning_style": ["text", "reference"],
+        "pace": "self-paced",
+        "goal": ["learn tools", "understand concepts"]
+    },
+
+    # ── NEW: AI / LLMs ────────────────────────────────────────────────────────
+    {
+        "title": "DeepLearning.AI - Short Courses",
+        "url": "https://www.deeplearning.ai/short-courses",
+        "type": "course",
+        "topic": "AI / LLMs",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free short courses on LLMs, prompt engineering, and AI tools by Andrew Ng. 1-2 hours each, very practical.",
+        "learning_style": ["visual", "hands-on"],
+        "pace": "micro-learning",
+        "goal": ["learn tools", "build projects", "understand concepts"]
+    },
+    {
+        "title": "LangChain - Official Tutorials",
+        "url": "https://python.langchain.com/docs/tutorials",
+        "type": "reference",
+        "topic": "AI / LLMs",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free official LangChain tutorials to build AI applications with LLMs. Best resource to start building AI-powered apps.",
+        "learning_style": ["text", "hands-on", "reference"],
+        "pace": "self-paced",
+        "goal": ["build projects", "learn tools"]
+    },
+
+    # ── NEW: INTERVIEW PREP ───────────────────────────────────────────────────
+    {
+        "title": "InterviewBit - Tech Interview Preparation",
+        "url": "https://www.interviewbit.com",
+        "type": "practice",
+        "topic": "Interview Preparation",
+        "level": "intermediate",
+        "free": True,
+        "description": "Free platform popular with Indian students for placement prep. Covers DSA, system design and company-specific questions.",
+        "learning_style": ["hands-on", "text"],
+        "pace": "structured",
+        "goal": ["get interview-ready"]
+    },
+    {
+        "title": "Code360 - Coding Interview Preparation",
+        "url": "https://www.naukri.com/code360/problems",
+        "type": "practice",
+        "topic": "Interview Preparation",
+        "level": "beginner",
+        "free": True,
+        "description": "Free coding practice platform widely used by Indian engineering students for campus placements and internships.",
+        "learning_style": ["hands-on"],
+        "pace": "self-paced",
+        "goal": ["get interview-ready"]
+    },
+
+    # ── NEW: MOBILE DEV ───────────────────────────────────────────────────────
+    {
+        "title": "Flutter - Official Codelabs",
+        "url": "https://docs.flutter.dev/get-started/codelab",
+        "type": "course",
+        "topic": "Mobile Development",
+        "level": "beginner",
+        "free": True,
+        "description": "Free official Flutter codelabs to build your first mobile app. Learn cross-platform iOS and Android development.",
+        "learning_style": ["hands-on", "text"],
+        "pace": "self-paced",
+        "goal": ["build projects", "learn tools"]
+    },
 ]
 
-for i, resource in enumerate(resources):
-    client.index(index="cs-resources", body=resource)
-    print(f"Indexed: {resource['title']}")
+# Index all resources
+success = 0
+failed = 0
+for resource in resources:
+    try:
+        client.index(index="cs-resources", body=resource)
+        print(f"✅ {resource['title']}")
+        success += 1
+    except Exception as e:
+        print(f"❌ FAILED: {resource['title']} — {e}")
+        failed += 1
 
-print(f"\nDone! {len(resources)} resources indexed with learning styles.")
+print(f"\n{'='*50}")
+print(f"✅ Indexed: {success}")
+print(f"❌ Failed:  {failed}")
+print(f"📚 Total:   {success} resources in SkillPath")
